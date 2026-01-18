@@ -24,16 +24,22 @@ on:
 
 env:
   REGISTRY: ghcr.io
-  IMAGE_NAME: ${{ github.repository }}
 
 jobs:
   run-gemini:
     runs-on: ubuntu-latest
     timeout-minutes: 120
+    env:
+      IMAGE_NAME: ${{ github.repository }}
 
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
+
+      - name: Set lowercase image name
+        id: image
+        run: |
+          echo "name=${IMAGE_NAME,,}" >> "$GITHUB_OUTPUT"
 
       - name: Create data directory
         run: mkdir -p data
@@ -71,8 +77,8 @@ jobs:
 
       - name: Pull Docker image
         run: |
-          docker pull ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest || \
-          docker build -t ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest .
+          docker pull ${{ env.REGISTRY }}/${{ steps.image.outputs.name }}:latest || \
+          docker build -t ${{ env.REGISTRY }}/${{ steps.image.outputs.name }}:latest .
 
       - name: Run Gemini Business Tool
         run: |
@@ -80,13 +86,13 @@ jobs:
             docker run --rm \
               -v "$(pwd)/data:/data" \
               -e POST_TARGET_URL="${{ secrets.POST_TARGET_URL }}" \
-              "${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest" \
+              "${{ env.REGISTRY }}/${{ steps.image.outputs.name }}:latest" \
               --register --count "${{ steps.mode.outputs.count }}"
           else
             docker run --rm \
               -v "$(pwd)/data:/data" \
               -e POST_TARGET_URL="${{ secrets.POST_TARGET_URL }}" \
-              "${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest"
+              "${{ env.REGISTRY }}/${{ steps.image.outputs.name }}:latest"
           fi
 
       - name: Upload results
