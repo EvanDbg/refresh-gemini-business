@@ -11,6 +11,65 @@
 - 📤 **数据推送**: 支持将结果 POST 到目标服务器
 - 🐳 **容器化**: 支持 Docker 部署，多架构支持 (amd64/arm64)
 
+## GitHub Actions 使用指南
+
+其他用户可以 Fork 本仓库，通过 GitHub Actions 直接运行工具。
+
+### 1. Fork 仓库
+
+点击右上角 **Fork** 按钮复制本仓库到你的账户。
+
+### 2. 配置 Secrets
+
+在仓库 **Settings → Secrets and variables → Actions** 中添加：
+
+| Secret 名称 | 描述 | 必需 |
+|------------|------|------|
+| `CLASH_CONFIG` | Clash/Mihomo YAML 配置（包含代理节点） | ✅ |
+| `ACCOUNTS_CSV` | result.csv 内容（刷新模式需要） | 刷新模式需要 |
+| `POST_TARGET_URL` | Cookie 推送目标地址 | ❌ 可选 |
+
+**CLASH_CONFIG 示例：**
+```yaml
+proxies:
+  - name: '🇺🇸 US Node'
+    type: ss
+    server: your.server.com
+    port: 443
+    cipher: 2022-blake3-aes-256-gcm
+    password: your-password
+  - name: '🇺🇸 US Node'
+    type: ss
+    server: your.server.com
+    port: 443
+    cipher: 2022-blake3-aes-256-gcm
+    password: your-password
+```
+
+**ACCOUNTS_CSV 示例：**
+```csv
+ID,Account,Password,Date
+1,example@domain.com,Password123,2026-01-16
+```
+
+### 3. 触发运行
+
+**手动触发：**
+1. 进入 **Actions** 页面
+2. 选择 **Run Gemini Business Tool** 工作流
+3. 点击 **Run workflow**
+4. 选择模式 (refresh/register) 和账号数量
+
+**自动触发：**
+- 每 6 小时自动运行刷新模式
+
+### 4. 获取结果
+
+运行完成后，在 **Actions → 对应运行记录 → Artifacts** 下载 `gemini-results-xxx`，包含：
+- `accounts.json` - 提取的 Cookie 数据
+- `result.csv` - 账号列表（注册模式会更新）
+
+
 ## 快速开始
 
 ### 环境要求
@@ -129,67 +188,6 @@ refresh-gemini-business/
 ```
 
 
-## GitHub Actions 使用指南
-
-其他用户可以 Fork 本仓库，通过 GitHub Actions 直接运行工具。
-
-### 1. Fork 仓库
-
-点击右上角 **Fork** 按钮复制本仓库到你的账户。
-
-### 2. 配置 Secrets
-
-在仓库 **Settings → Secrets and variables → Actions** 中添加：
-
-| Secret 名称 | 描述 | 必需 |
-|------------|------|------|
-| `CLASH_CONFIG` | 完整的 Clash/Mihomo YAML 配置（包含代理节点） | ✅ |
-| `ACCOUNTS_CSV` | result.csv 内容（刷新模式需要） | 刷新模式需要 |
-| `POST_TARGET_URL` | Cookie 推送目标地址 | ❌ 可选 |
-
-**CLASH_CONFIG 示例：**
-```yaml
-mixed-port: 17890
-allow-lan: true
-mode: rule
-external-controller: '127.0.0.1:29090'
-proxies:
-  - name: '🇺🇸 US Node'
-    type: ss
-    server: your.server.com
-    port: 443
-    cipher: 2022-blake3-aes-256-gcm
-    password: your-password
-proxy-groups:
-  - name: Proxy
-    type: select
-    proxies: ['🇺🇸 US Node']
-rules:
-  - MATCH,Proxy
-```
-
-**ACCOUNTS_CSV 示例：**
-```csv
-ID,Account,Password,Date
-1,example@domain.com,Password123,2026-01-16
-```
-
-### 3. 触发运行
-
-**手动触发：**
-1. 进入 **Actions** 页面
-2. 选择 **Run Gemini Business Tool** 工作流
-3. 点击 **Run workflow**
-4. 选择模式 (refresh/register) 和账号数量
-
-**自动触发：**
-- 每 6 小时自动运行刷新模式
-
-### 4. 获取结果
-
-运行完成后，在 **Actions → 对应运行记录 → Artifacts** 下载 `gemini-results-xxx`，包含：
-- `accounts.json` - 提取的 Cookie 数据
-- `result.csv` - 账号列表（注册模式会更新）
 
 ### Docker 镜像
 
