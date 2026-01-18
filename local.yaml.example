@@ -1,0 +1,29 @@
+# Clash/Mihomo 配置模板
+# 请将此文件重命名为 local.yaml 并填入你的代理节点
+
+mixed-port: 17890
+allow-lan: true
+mode: rule
+log-level: info
+external-controller: '127.0.0.1:29090'
+
+proxies:
+  # 在这里添加你的代理节点
+  # 示例:
+  # - name: '🇺🇸 美国节点'
+  #   type: ss
+  #   server: your.server.com
+  #   port: 443
+  #   cipher: 2022-blake3-aes-256-gcm
+  #   password: your-password
+  #   udp: true
+
+proxy-groups:
+  - name: Proxy
+    type: select
+    proxies:
+      # 添加你的节点名称
+      - DIRECT
+
+rules:
+  - MATCH,Proxy

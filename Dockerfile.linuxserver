@@ -1,0 +1,116 @@
+# ==========================================
+# Gemini Business Cookie Refresh Tool
+# Based on linuxserver/chromium for true desktop environment
+# Supports ARM64 (Apple Silicon) and AMD64
+# This bypasses headless detection by using a real X11 display
+# ==========================================
+
+FROM lscr.io/linuxserver/chromium:latest
+
+# Set environment variables
+ENV PYTHONUNBUFFERED=1
+ENV PYTHONPATH=/app
+ENV DISPLAY=:1
+
+# Install Python and dependencies
+USER root
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    python3 \
+    python3-pip \
+    python3-venv \
+    wget \
+    curl \
+    gzip \
+    && rm -rf /var/lib/apt/lists/*
+
+# Set versions
+ARG MIHOMO_VERSION=v1.19.19
+
+# Download Mihomo based on architecture
+ARG TARGETARCH
+RUN if [ "$TARGETARCH" = "amd64" ] || [ "$(uname -m)" = "x86_64" ]; then \
+        wget -O /tmp/mihomo.gz "https://github.com/MetaCubeX/mihomo/releases/download/${MIHOMO_VERSION}/mihomo-linux-amd64-${MIHOMO_VERSION}.gz" && \
+        gzip -d /tmp/mihomo.gz && \
+        mv /tmp/mihomo /usr/local/bin/mihomo && \
+        chmod +x /usr/local/bin/mihomo; \
+    elif [ "$TARGETARCH" = "arm64" ] || [ "$(uname -m)" = "aarch64" ]; then \
+        wget -O /tmp/mihomo.gz "https://github.com/MetaCubeX/mihomo/releases/download/${MIHOMO_VERSION}/mihomo-linux-arm64-${MIHOMO_VERSION}.gz" && \
+        gzip -d /tmp/mihomo.gz && \
+        mv /tmp/mihomo /usr/local/bin/mihomo && \
+        chmod +x /usr/local/bin/mihomo; \
+    fi
+
+# Verify mihomo installation
+RUN mihomo -v || echo "Mihomo will be installed on first run if not present"
+
+# Download GeoIP database for Mihomo
+RUN mkdir -p /root/.config/mihomo && \
+    wget -O /root/.config/mihomo/Country.mmdb \
+    "https://github.com/MetaCubeX/meta-rules-dat/releases/download/latest/country.mmdb" || true
+
+# Create app directory
+WORKDIR /app
+
+# Copy requirements first for better caching
+COPY requirements.txt .
+
+# Create virtual environment and install dependencies
+RUN python3 -m venv /app/.venv && \
+    /app/.venv/bin/pip install --upgrade pip && \
+    /app/.venv/bin/pip install --no-cache-dir -r requirements.txt
+
+# Install playwright and install chromium browser
+RUN /app/.venv/bin/pip install playwright playwright-stealth && \
+    /app/.venv/bin/playwright install chromium --with-deps
+
+# Copy application code
+COPY src/ ./src/
+COPY extensions/ ./extensions/
+
+# Copy config files
+COPY .env.example .env
+COPY local.yaml.example local.yaml.example
+
+# Create entrypoint script
+COPY <<'EOF' /app/run.sh
+#!/bin/bash
+set -e
+
+# Wait for X11 display to be ready (linuxserver starts it)
+echo "Waiting for X11 display..."
+for i in {1..30}; do
+    if xdpyinfo -display :1 >/dev/null 2>&1; then
+        echo "X11 display :1 is ready"
+        break
+    fi
+    sleep 1
+done
+
+# Set display
+export DISPLAY=:1
+
+# Set environment
+export PYTHONPATH=/app
+export CLASH_EXECUTABLE=/usr/local/bin/mihomo
+export CLASH_CONFIG=/data/local.yaml
+export INPUT_CSV_PATH=/data/result.csv
+export OUTPUT_JSON_PATH=/data/accounts.json
+export CHROMIUM_PATH=/usr/bin/chromium-browser
+
+# Run the application with --no-headless flag
+echo "Starting Gemini Business Cookie Refresh Tool..."
+cd /app
+exec /app/.venv/bin/python -m src.main --no-headless "$@"
+EOF
+
+RUN chmod +x /app/run.sh
+
+# Create data directories
+RUN mkdir -p /data /tmp/gemini-browser-profile
+
+# Volumes for data
+VOLUME ["/data"]
+
+# Default command runs the tool
+# User can override with docker run ... gemini-refresh --help
+CMD ["/app/run.sh"]

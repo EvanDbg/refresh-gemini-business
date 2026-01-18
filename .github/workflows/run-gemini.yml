@@ -1,0 +1,110 @@
+name: Run Gemini Business Tool
+
+on:
+  # 手动触发
+  workflow_dispatch:
+    inputs:
+      mode:
+        description: '运行模式'
+        required: true
+        default: 'refresh'
+        type: choice
+        options:
+          - refresh
+          - register
+      account_count:
+        description: '注册账号数量 (仅 register 模式)'
+        required: false
+        default: '1'
+        type: string
+  
+  # 每6小时定时触发 (刷新模式)
+  schedule:
+    - cron: '0 */6 * * *'
+
+env:
+  REGISTRY: ghcr.io
+  IMAGE_NAME: ${{ github.repository }}
+
+jobs:
+  run-gemini:
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Create data directory
+        run: mkdir -p data
+
+      - name: Write Clash config from secret
+        run: |
+          echo "${{ secrets.CLASH_CONFIG }}" > data/local.yaml
+
+      - name: Write accounts CSV from secret
+        if: github.event_name == 'schedule' || inputs.mode == 'refresh'
+        run: |
+          echo "${{ secrets.ACCOUNTS_CSV }}" > data/result.csv
+
+      - name: Set run mode
+        id: mode
+        run: |
+          if [ "${{ github.event_name }}" == "schedule" ]; then
+            echo "mode=refresh" >> "$GITHUB_OUTPUT"
+            echo "count=1" >> "$GITHUB_OUTPUT"
+          else
+            echo "mode=${{ inputs.mode }}" >> "$GITHUB_OUTPUT"
+            echo "count=${{ inputs.account_count || '1' }}" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Validate secrets
+        run: |
+          if [ ! -s data/local.yaml ]; then
+            echo "::error::CLASH_CONFIG secret is not set or empty"
+            exit 1
+          fi
+          if [ "${{ steps.mode.outputs.mode }}" == "refresh" ] && [ ! -s data/result.csv ]; then
+            echo "::error::ACCOUNTS_CSV secret is required for refresh mode"
+            exit 1
+          fi
+
+      - name: Pull Docker image
+        run: |
+          docker pull ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest || \
+          docker build -t ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest .
+
+      - name: Run Gemini Business Tool
+        run: |
+          if [ "${{ steps.mode.outputs.mode }}" == "register" ]; then
+            docker run --rm \
+              -v "$(pwd)/data:/data" \
+              -e POST_TARGET_URL="${{ secrets.POST_TARGET_URL }}" \
+              "${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest" \
+              --register --count "${{ steps.mode.outputs.count }}"
+          else
+            docker run --rm \
+              -v "$(pwd)/data:/data" \
+              -e POST_TARGET_URL="${{ secrets.POST_TARGET_URL }}" \
+              "${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest"
+          fi
+
+      - name: Upload results
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: gemini-results-${{ github.run_number }}
+          path: |
+            data/accounts.json
+            data/result.csv
+          retention-days: 30
+
+      - name: Show results summary
+        if: always()
+        run: |
+          echo "=== Accounts JSON ===" 
+          if [ -f data/accounts.json ]; then
+            cat data/accounts.json | head -100
+          else
+            echo "No accounts.json generated"
+          fi

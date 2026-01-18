@@ -1,0 +1,71 @@
+# Docker Compose for Gemini Business Cookie Refresh Tool
+# Uses linuxserver/chrome base image with full desktop environment
+
+version: "3.8"
+
+services:
+  gemini-refresh:
+    build:
+      context: .
+      dockerfile: Dockerfile.linuxserver
+    container_name: gemini-refresh
+    
+    # Required for proper browser rendering
+    shm_size: "2gb"
+    
+    # Security options for Chrome
+    security_opt:
+      - seccomp:unconfined
+    
+    # Port mappings
+    # 3000 - Web access to Chrome desktop (noVNC)
+    # 3001 - HTTPS Web access
+    ports:
+      - "3000:3000"
+      - "3001:3001"
+    
+    # Environment variables
+    environment:
+      - PUID=1000
+      - PGID=1000
+      - TZ=Asia/Shanghai
+      - DISPLAY=:1
+    
+    # Mount data volumes
+    volumes:
+      - ./local.yaml:/data/local.yaml:ro
+      - ./result.csv:/data/result.csv:ro
+      - ./accounts.json:/data/accounts.json
+    
+    # Keep container running for interactive use
+    # Use: docker compose exec gemini-refresh /app/run.sh
+    stdin_open: true
+    tty: true
+
+  # Optional: Run tool automatically on container start
+  gemini-refresh-auto:
+    build:
+      context: .
+      dockerfile: Dockerfile.linuxserver
+    container_name: gemini-refresh-auto
+    
+    shm_size: "2gb"
+    security_opt:
+      - seccomp:unconfined
+    
+    environment:
+      - PUID=1000
+      - PGID=1000
+      - TZ=Asia/Shanghai
+      - DISPLAY=:1
+    
+    volumes:
+      - ./local.yaml:/data/local.yaml:ro
+      - ./result.csv:/data/result.csv:ro
+      - ./accounts.json:/data/accounts.json
+    
+    # Run with specific proxy node
+    command: ["/app/run.sh", "--proxy-node", "EVAN1s-US_RAILWAY 3"]
+    
+    profiles:
+      - auto

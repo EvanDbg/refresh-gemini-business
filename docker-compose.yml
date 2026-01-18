@@ -1,0 +1,54 @@
+version: '3.8'
+
+services:
+  gemini-refresh:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: gemini-refresh
+    restart: unless-stopped
+    
+    # Mount data directory for config and output
+    volumes:
+      - ./data:/data
+      # Mount local.yaml config
+      - ./local.yaml:/data/local.yaml:ro
+      # Mount input CSV
+      - ./result.csv:/data/result.csv:ro
+      # Output will be written to ./data/accounts.json
+    
+    # Environment variables (can also use .env file)
+    environment:
+      - CLASH_EXECUTABLE=/usr/local/bin/mihomo
+      - CLASH_CONFIG=/data/local.yaml
+      - CLASH_PORT=17890
+      - CLASH_API_PORT=29090
+      - EMAIL_API_URL=https://api.duckmail.sbs
+      - POST_TARGET_URL=${POST_TARGET_URL:-}
+      - INPUT_CSV_PATH=/data/result.csv
+      - OUTPUT_JSON_PATH=/data/accounts.json
+      - BROWSER_HEADLESS=true
+      - REQUEST_TIMEOUT=30
+      - RETRY_COUNT=3
+    
+    # Run without options to show help
+    # Override with: docker compose run gemini-refresh
+    command: ["--headless"]
+    
+    # Network mode for proxy access (if needed)
+    # network_mode: host
+    
+    # Security options
+    security_opt:
+      - seccomp:unconfined
+    
+    # Shared memory for Chromium
+    shm_size: '2gb'
+
+  # Optional: Run a single account refresh
+  gemini-refresh-single:
+    extends:
+      service: gemini-refresh
+    profiles:
+      - manual
+    command: ["--headless"]

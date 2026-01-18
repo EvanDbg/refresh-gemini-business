@@ -1,0 +1,21 @@
+[
+  {
+    "id": "account_1",
+    "email": "example@domain.com",
+    "secure_c_ses": "CSE.Ad_YOUR_SECURE_C_SES_VALUE_HERE",
+    "csesidx": "12345678",
+    "config_id": "your-config-id-here",
+    "host_c_oses": "COS.Af_YOUR_HOST_C_OSES_VALUE_HERE",
+    "expires_at": "2026-01-23 17:00:00",
+    "created_at": "2026-01-16 17:00:00"
+  },
+  {
+    "id": "account_2",
+    "email": "example2@domain.com",
+    "secure_c_ses": "CSE.Ad_ANOTHER_SECURE_C_SES_VALUE",
+    "csesidx": "87654321",
+    "config_id": "another-config-id",
+    "expires_at": "2026-01-23 17:00:00",
+    "created_at": "2026-01-16 17:00:00"
+  }
+]
