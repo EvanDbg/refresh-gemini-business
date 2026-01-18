@@ -53,6 +53,11 @@ jobs:
         run: |
           echo "${{ secrets.ACCOUNTS_CSV }}" > data/result.csv
 
+      - name: Create empty CSV for register mode
+        if: inputs.mode == 'register'
+        run: |
+          echo "ID,Account,Password,Date" > data/result.csv
+
       - name: Set run mode
         id: mode
         run: |
