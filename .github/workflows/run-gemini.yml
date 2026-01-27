@@ -19,8 +19,8 @@ on:
         type: string
   
   # 每6小时定时触发 (刷新模式)
-  schedule:
-    - cron: '0 */6 * * *'
+  # schedule:
+  #   - cron: '0 */6 * * *'
 
 env:
   REGISTRY: ghcr.io
